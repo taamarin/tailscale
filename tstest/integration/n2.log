@@ -1,0 +1,44 @@
+ tshttpproxy: using proxy "http://127.0.0.1:63226" for URL: "https://controlplane.tailscale.com/"
+ You have enabled a non-default log target. Doing without being told to by Tailscale staff or your network administrator will make getting support difficult.
+ logtail started
+ Program starting: v1.85.0-dev20250716-tf6b4b0974, Go 1.24.4: []string{"/var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/001/tailscaled", "--statedir=/var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/004", "--socket=/var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/004/tailscale.sock", "--socks5-server=localhost:0", "--debug=localhost:0", "--tun=userspace-networking"}
+ LogID: 60840058f94b6b6b8637ff86c74a34fc57352e3e678f672b7ae87e3d4b8336fd
+ logpolicy.ConfigFromFile /var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/005/tailscaled.log.conf: open /var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/005/tailscaled.log.conf: no such file or directory
+logpolicy.Config.Validate for /var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/005/tailscaled.log.conf: config is nil
+ dns: using *dns.darwinConfigurator
+ SOCKS5 listening on 127.0.0.1:63290
+ wgengine.NewUserspaceEngine(tun "userspace-networking") ...
+ dns: using dns.noopManager
+ link state: interfaces.State{defaultRoute=en0 ifs={bridge100:[192.168.64.1/24 fddf:d70e:f3cc:c955:c65:55d:16c1:34c3/64 llu6] en0:[10.0.0.147/24 2601:647:6801:2640::8f6e/64 2601:647:6801:2640:c53:6dac:6b19:400d/64 2601:647:6801:2640:2c7f:adc9:fe9a:9aaa/64 2601:647:6801:2640:4437:5cbd:5a7e:3654/64 2601:647:6801:2640:54f9:6903:ef0f:741/64 2601:647:6801:2640:6917:ca24:bbc2:32d0/64 2601:647:6801:2640:7888:9724:e822:92b2/64 2601:647:6801:2640:c5b2:3ea1:bace:bae1/64 2601:647:6801:2640:d83b:5f10:a4ae:19d1/64 llu6] lo0:[10.0.0.159/8 lo4 lo6 llu6] utun4:[100.109.146.15/32 fd7a:115c:a1e0::8401:9210/48 llu6]} httpproxy=http://127.0.0.1:63226 v4=true v6=true}
+ onPortUpdate(port=58902, network=udp6)
+ onPortUpdate(port=63112, network=udp4)
+ magicsock: disco key = d:f39fd6aae179821f
+ Creating WireGuard device...
+ Bringing WireGuard device up...
+ Bringing router up...
+ Clearing router settings...
+ Starting network monitor...
+ Engine created.
+ DEBUG-ADDR=127.0.0.1:63296
+ pm: migrating "_daemon" profile to new format
+ envknob: TS_ASSUME_NETWORK_UP_FOR_TEST="1"
+ envknob: TS_DEBUG_FAKE_GOOS="darwin"
+ envknob: TS_DEBUG_LOG_RATE="all"
+ envknob: TS_DISABLE_PORTMAPPER="1"
+ envknob: TS_DISABLE_UPNP="true"
+ envknob: TS_PARENT_DEATH_FD="3"
+ got LocalBackend in 16ms
+ Start
+ ipnext: active extensions: relayserver, taildrop
+ Backend: logs: be:60840058f94b6b6b8637ff86c74a34fc57352e3e678f672b7ae87e3d4b8336fd fe:
+ Switching ipn state NoState -> NeedsLogin (WantRunning=false, nm=false)
+ blockEngineUpdates(true)
+ health(warnable=wantrunning-false): error: Tailscale is stopped.
+ health(warnable=is-using-unstable-version): error: This is an unstable version of Tailscale meant for testing and development purposes. Please report any issues to Tailscale.
+ wgengine: Reconfig: configuring userspace WireGuard config (with 0/0 peers)
+ wgengine: Reconfig: configuring router
+ wgengine: Reconfig: user dialer
+ wgengine: Reconfig: configuring DNS
+ dns: Set: {DefaultResolvers:[] Routes:{} SearchDomains:[] Hosts:0}
+ dns: Resolvercfg: {Routes:{} Hosts:0 LocalDomains:[]}
+ dns: OScfg: {}

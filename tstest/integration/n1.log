@@ -1,0 +1,90 @@
+ tshttpproxy: using proxy "http://127.0.0.1:63226" for URL: "https://controlplane.tailscale.com/"
+ You have enabled a non-default log target. Doing without being told to by Tailscale staff or your network administrator will make getting support difficult.
+ logtail started
+ Program starting: v1.85.0-dev20250716-tf6b4b0974, Go 1.24.4: []string{"/var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/001/tailscaled", "--statedir=/var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/002", "--socket=/var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/002/tailscale.sock", "--socks5-server=localhost:0", "--debug=localhost:0", "--tun=userspace-networking"}
+ LogID: 4a343c115f224159c28492dfb8ed7aab7c63d6dff4dd7d4c4f49591e9df98f4d
+ logpolicy.ConfigFromFile /var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/003/tailscaled.log.conf: open /var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/003/tailscaled.log.conf: no such file or directory
+logpolicy.Config.Validate for /var/folders/7x/933yg1wj68x95m7r2ql6mmx80000gn/T/TestTwoNodes3621534768/003/tailscaled.log.conf: config is nil
+ dns: using *dns.darwinConfigurator
+ SOCKS5 listening on 127.0.0.1:63291
+ wgengine.NewUserspaceEngine(tun "userspace-networking") ...
+ dns: using dns.noopManager
+ link state: interfaces.State{defaultRoute=en0 ifs={bridge100:[192.168.64.1/24 fddf:d70e:f3cc:c955:c65:55d:16c1:34c3/64 llu6] en0:[10.0.0.147/24 2601:647:6801:2640::8f6e/64 2601:647:6801:2640:c53:6dac:6b19:400d/64 2601:647:6801:2640:2c7f:adc9:fe9a:9aaa/64 2601:647:6801:2640:4437:5cbd:5a7e:3654/64 2601:647:6801:2640:54f9:6903:ef0f:741/64 2601:647:6801:2640:6917:ca24:bbc2:32d0/64 2601:647:6801:2640:7888:9724:e822:92b2/64 2601:647:6801:2640:c5b2:3ea1:bace:bae1/64 2601:647:6801:2640:d83b:5f10:a4ae:19d1/64 llu6] lo0:[10.0.0.159/8 lo4 lo6 llu6] utun4:[100.109.146.15/32 fd7a:115c:a1e0::8401:9210/48 llu6]} httpproxy=http://127.0.0.1:63226 v4=true v6=true}
+ onPortUpdate(port=56783, network=udp6)
+ onPortUpdate(port=64535, network=udp4)
+ magicsock: disco key = d:380585cafc2a779c
+ Creating WireGuard device...
+ Bringing WireGuard device up...
+ Bringing router up...
+ Clearing router settings...
+ Starting network monitor...
+ Engine created.
+ DEBUG-ADDR=127.0.0.1:63297
+ pm: migrating "_daemon" profile to new format
+ envknob: TS_ASSUME_NETWORK_UP_FOR_TEST="1"
+ envknob: TS_DEBUG_FAKE_GOOS="darwin"
+ envknob: TS_DEBUG_LOG_RATE="all"
+ envknob: TS_DISABLE_PORTMAPPER="1"
+ envknob: TS_DISABLE_UPNP="true"
+ envknob: TS_PARENT_DEATH_FD="3"
+ got LocalBackend in 16ms
+ Start
+ ipnext: active extensions: relayserver, taildrop
+ Backend: logs: be:4a343c115f224159c28492dfb8ed7aab7c63d6dff4dd7d4c4f49591e9df98f4d fe:
+ Switching ipn state NoState -> NeedsLogin (WantRunning=false, nm=false)
+ health(warnable=is-using-unstable-version): error: This is an unstable version of Tailscale meant for testing and development purposes. Please report any issues to Tailscale.
+ blockEngineUpdates(true)
+ health(warnable=wantrunning-false): error: Tailscale is stopped.
+ wgengine: Reconfig: configuring userspace WireGuard config (with 0/0 peers)
+ wgengine: Reconfig: configuring router
+ wgengine: Reconfig: user dialer
+ wgengine: Reconfig: configuring DNS
+ dns: Set: {DefaultResolvers:[] Routes:{} SearchDomains:[] Hosts:0}
+ dns: Resolvercfg: {Routes:{} Hosts:0 LocalDomains:[]}
+ dns: OScfg: {}
+ Start
+ generating new machine key
+ machine key written to store
+ Backend: logs: be:4a343c115f224159c28492dfb8ed7aab7c63d6dff4dd7d4c4f49591e9df98f4d fe:
+ health(warnable=wantrunning-false): ok
+ Switching ipn state NoState -> NeedsLogin (WantRunning=true, nm=false)
+ blockEngineUpdates(true)
+ health(warnable=warming-up): error: Tailscale is starting. Please wait.
+ control: client.Shutdown ...
+ control: mapRoutine: exiting
+ control: authRoutine: exiting
+ control: updateRoutine: exiting
+ control: Client.Shutdown done.
+ StartLoginInteractiveAs("karilam"): url=false
+ control: client.Login(2)
+ control: LoginInteractive -> regen=true
+ control: doLogin(regen=true, hasUrl=false)
+ control: control server key from http://127.0.0.1:63199: ts2021=[qe12O], legacy=[7fQR3]
+ control: Generating a new nodekey.
+ control: RegisterReq: onode= node=[ilxvj] fup=false nks=false
+ control: setting empty HTTPS port with http scheme and private host 127.0.0.1
+ control: RegisterReq: got response; nodeKeyExpired=false, machineAuthorized=true; authURL=false
+ blockEngineUpdates(false)
+ health(warnable=not-in-map-poll): ok
+ netmap: flagExpiredPeers: [unexpected] delta-adjusted current time is before hardcoded epoch; skipping
+ netmap: nextPeerExpiry: [unexpected] delta-adjusted current time is before hardcoded epoch; skipping
+panic: runtime error: invalid memory address or nil pointer dereference
+[signal SIGSEGV: segmentation violation code=0x2 addr=0x28 pc=0x103179a80]
+
+goroutine 244 [running]:
+tailscale.com/feature/taildrop.(*Extension).onChangeProfile(0x140003e3900, {0x1030b0c5c?}, {0x1400033e2c0?}, 0x0?)
+	/Users/karilam/tailscale/feature/taildrop/ext.go:191 +0x1b0
+tailscale.com/ipn/ipnlocal.(*ExtensionHost).NotifyProfileChange(0x14000603c00, {0x140000ea6c0?}, {0x0?}, 0x1)
+	/Users/karilam/tailscale/ipn/ipnlocal/extension_host.go:424 +0x190
+tailscale.com/ipn/ipnlocal.(*profileManager).setProfilePrefs(0x1400012a620, 0x0?, {0x14000347b2e?}, {{0x1400014e9d8?, 0x0?}, {0x1400014ea20?, 0x14000347c08?}})
+	/Users/karilam/tailscale/ipn/ipnlocal/profiles.go:452 +0x524
+tailscale.com/ipn/ipnlocal.(*profileManager).SetPrefs(0x1400012a620, {0x0?}, {{0x1400014e9d8?, 0x14af92200?}, {0x1400014ea20?, 0x140003ca6a0?}})
+	/Users/karilam/tailscale/ipn/ipnlocal/profiles.go:379 +0x1f4
+tailscale.com/ipn/ipnlocal.(*LocalBackend).SetControlClientStatus(0x1400023e008, {0x103714e80, 0x140006171e0}, {{}, {0x0, 0x0}, {0x0, 0x0}, 0x14000134fc8, {0x140001a6380}, ...})
+	/Users/karilam/tailscale/ipn/ipnlocal/local.go:1649 +0xa6c
+tailscale.com/control/controlclient.(*Auto).sendStatus.func1()
+	/Users/karilam/tailscale/control/controlclient/auto.go:629 +0x14c
+tailscale.com/util/execqueue.(*ExecQueue).run(0x14000617220, 0x0?)
+	/Users/karilam/tailscale/util/execqueue/execqueue.go:57 +0x28
+created by tailscale.com/util/execqueue.(*ExecQueue).Add in goroutine 187
+	/Users/karilam/tailscale/util/execqueue/execqueue.go:31 +0x1a0

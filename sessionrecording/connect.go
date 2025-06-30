@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/netip"
+	"strings"
 	"sync/atomic"
 	"time"
 

@@ -292,6 +292,7 @@ func main() {
 			log.Fatal("--encrypt-state can only be used with --state set to a local file path")
 		}
 	}
+	hostinfo.SetStateEncrypted(args.encryptState)
 
 	if args.disableLogs {
 		envknob.SetNoLogsNoSupport()

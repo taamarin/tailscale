@@ -27,6 +27,7 @@ import (
 	"tailscale.com/util/cloudenv"
 	"tailscale.com/util/dnsname"
 	"tailscale.com/util/lineiter"
+	"tailscale.com/util/syspolicy"
 	"tailscale.com/version"
 	"tailscale.com/version/distro"
 )
@@ -66,6 +67,7 @@ func New() *tailcfg.Hostinfo {
 		Cloud:           string(cloudenv.Get()),
 		NoLogsNoSupport: envknob.NoLogsNoSupport(),
 		AllowsUpdate:    envknob.AllowsRemoteUpdate(),
+		StateEncrypted:  stateEncrypted(),
 	}
 	for _, f := range newHooks {
 		f(hi)
@@ -179,12 +181,13 @@ func GetEnvType() EnvType {
 }
 
 var (
-	deviceModelAtomic atomic.Value // of string
-	osVersionAtomic   atomic.Value // of string
-	desktopAtomic     atomic.Value // of opt.Bool
-	packagingType     atomic.Value // of string
-	appType           atomic.Value // of string
-	firewallMode      atomic.Value // of string
+	deviceModelAtomic    atomic.Value // of string
+	osVersionAtomic      atomic.Value // of string
+	desktopAtomic        atomic.Value // of opt.Bool
+	packagingType        atomic.Value // of string
+	appType              atomic.Value // of string
+	firewallMode         atomic.Value // of string
+	stateEncryptedAtomic atomic.Value // of bool
 )
 
 // SetDeviceModel sets the device model for use in Hostinfo updates.
@@ -225,6 +228,34 @@ func SetPackage(v string) { packagingType.Store(v) }
 // It is used by tsnet to specify what app is using it such as "golinks"
 // and "k8s-operator".
 func SetApp(v string) { appType.Store(v) }
+
+// SetStateEncrypted marks the state of the node as encrypted on disk.
+func SetStateEncrypted(v bool) { stateEncryptedAtomic.Store(v) }
+
+func stateEncrypted() opt.Bool {
+	if v := stateEncryptedAtomic.Load(); v != nil {
+		v, _ := v.(bool)
+		return opt.NewBool(v)
+	}
+	switch runtime.GOOS {
+	case "android", "ios":
+		return opt.NewBool(true)
+	case "darwin":
+		if !version.IsMacSysExt() {
+			return opt.NewBool(true)
+		}
+		// MacSys still stores its state in plaintext on disk in addition to
+		// the Keychain. A future release will clean up the on-disk state
+		// files.
+		// TODO(#15830): always return true here once MacSys is fully migrated.
+		sp, _ := syspolicy.GetBoolean(syspolicy.EncryptState, false)
+		return opt.NewBool(sp)
+	default:
+		// All other platforms don't encrypt state by default, but they will
+		// call SetStateEncrypted if the user opts in.
+		return opt.NewBool(false)
+	}
+}
 
 // FirewallMode returns the firewall mode for the app.
 // It is empty if unset.

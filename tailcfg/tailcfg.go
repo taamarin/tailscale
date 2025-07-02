@@ -2602,14 +2602,17 @@ const (
 	// peer node list.
 	NodeAttrNativeIPV4 NodeCapability = "native-ipv4"
 
-	// TODO (dylan): Rewrite doc comment
-	// NodeAttrDisableRelayServer permits the node to act as an underlay UDP relay
-	// server. There are no expected values for this key in NodeCapMap.
+	// NodeAttrDisableRelayServer prevents the node from acting as an underlay
+	// UDP relay server. There are no expected values for this key; the key
+	// only needs to be present in [NodeCapMap] to take effect.
 	NodeAttrDisableRelayServer NodeCapability = "disable-relay-server"
 
-	// TODO (dylan): Rewrite doc comment
-	// NodeAttrDisableRelayClient permits the node to act as an underlay UDP relay
-	// client. There are no expected values for this key in NodeCapMap.
+	// NodeAttrDisableRelayClient prevents the node from relaying its traffic
+	// via UDP relay servers. This can be set dynamically; if set while the
+	// node is already running, the node will stop sending traffic to UDP relay
+	// servers the next time its network map is updated. There are no expected
+	// values for this key in [NodeCapMap]; the key only needs to be present in
+	// [NodeCapMap] to take effect.
 	NodeAttrDisableRelayClient NodeCapability = "disable-relay-client"
 
 	// NodeAttrMagicDNSPeerAAAA is a capability that tells the node's MagicDNS

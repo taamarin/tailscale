@@ -130,8 +130,8 @@ func (e *extension) relayServerOrInit() (relayServer, error) {
 	if e.port == nil {
 		return nil, errors.New("relay server is not configured")
 	}
-	if !e.hasNodeAttrDisableRelayServer {
-		return nil, errors.New("no relay:server node attribute")
+	if e.hasNodeAttrDisableRelayServer {
+		return nil, errors.New("disable-relay-server node attribute is present")
 	}
 	if !envknob.UseWIPCode() {
 		return nil, errors.New("TAILSCALE_USE_WIP_CODE envvar is not set")

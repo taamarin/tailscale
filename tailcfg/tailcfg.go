@@ -2602,13 +2602,13 @@ const (
 	// peer node list.
 	NodeAttrNativeIPV4 NodeCapability = "native-ipv4"
 
-	// NodeAttrRelayServer permits the node to act as an underlay UDP relay
+	// NodeAttrDisableRelayServer permits the node to act as an underlay UDP relay
 	// server. There are no expected values for this key in NodeCapMap.
-	NodeAttrRelayServer NodeCapability = "relay:server"
+	NodeAttrDisableRelayServer NodeCapability = "disable-relay-server"
 
-	// NodeAttrRelayClient permits the node to act as an underlay UDP relay
+	// NodeAttrDisableRelayClient permits the node to act as an underlay UDP relay
 	// client. There are no expected values for this key in NodeCapMap.
-	NodeAttrRelayClient NodeCapability = "relay:client"
+	NodeAttrDisableRelayClient NodeCapability = "disable-relay-client"
 
 	// NodeAttrMagicDNSPeerAAAA is a capability that tells the node's MagicDNS
 	// server to answer AAAA queries about its peers. See tailscale/tailscale#1152.

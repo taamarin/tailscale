@@ -3409,7 +3409,7 @@ func Test_peerAPIIfCandidateRelayServer(t *testing.T) {
 	peerOnlyIPv4 := &tailcfg.Node{
 		Cap: math.MinInt32,
 		CapMap: map[tailcfg.NodeCapability][]tailcfg.RawMessage{
-			tailcfg.NodeAttrRelayServer: nil,
+			tailcfg.NodeAttrDisableRelayServer: nil,
 		},
 		Addresses: []netip.Prefix{
 			netip.MustParsePrefix("2.2.2.2/32"),

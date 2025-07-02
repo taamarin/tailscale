@@ -81,7 +81,7 @@ func (e *extension) Init(host ipnext.Host) error {
 func (e *extension) selfNodeViewChanged(nodeView tailcfg.NodeView) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.hasNodeAttrRelayServer = nodeView.HasCap(tailcfg.NodeAttrRelayServer)
+	e.hasNodeAttrRelayServer = nodeView.HasCap(tailcfg.NodeAttrDisableRelayServer)
 	if !e.hasNodeAttrRelayServer && e.server != nil {
 		e.server.Close()
 		e.server = nil

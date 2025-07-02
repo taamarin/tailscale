@@ -196,7 +196,10 @@ func (h *Hijacker) setUpRecording(ctx context.Context, conn net.Conn) (net.Conn,
 	case SPDYProtocol:
 		lc = spdy.New(conn, rec, ch, hasTerm, h.log)
 	case WSProtocol:
-		lc = ws.New(conn, rec, ch, hasTerm, h.log)
+		lc, err = ws.New(conn, rec, ch, hasTerm, h.log)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize websocket connection: %w", err)
+		}
 	default:
 		return nil, fmt.Errorf("unknown protocol: %s", h.proto)
 	}

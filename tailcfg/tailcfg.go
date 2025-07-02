@@ -2602,10 +2602,12 @@ const (
 	// peer node list.
 	NodeAttrNativeIPV4 NodeCapability = "native-ipv4"
 
+	// TODO (dylan): Rewrite doc comment
 	// NodeAttrDisableRelayServer permits the node to act as an underlay UDP relay
 	// server. There are no expected values for this key in NodeCapMap.
 	NodeAttrDisableRelayServer NodeCapability = "disable-relay-server"
 
+	// TODO (dylan): Rewrite doc comment
 	// NodeAttrDisableRelayClient permits the node to act as an underlay UDP relay
 	// client. There are no expected values for this key in NodeCapMap.
 	NodeAttrDisableRelayClient NodeCapability = "disable-relay-client"

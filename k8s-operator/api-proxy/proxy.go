@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/transport"
 	"tailscale.com/client/local"
 	"tailscale.com/client/tailscale/apitype"
+	"tailscale.com/k8s-operator/sessionrecording"
 	ksr "tailscale.com/k8s-operator/sessionrecording"
 	"tailscale.com/kube/kubetypes"
 	"tailscale.com/tailcfg"
@@ -234,7 +235,7 @@ func (ap *apiserverProxy) serveAttachWS(w http.ResponseWriter, r *http.Request) 
 	ap.subForProto(w, r, ksr.AttachSubcommand, ksr.WSProtocol)
 }
 
-func (ap *apiserverProxy) subForProto(w http.ResponseWriter, r *http.Request, subcommand string, proto ksr.Protocol) {
+func (ap *apiserverProxy) subForProto(w http.ResponseWriter, r *http.Request, subcommand sessionrecording.Subcommand, proto ksr.Protocol) {
 	const (
 		podNameKey       = "pod"
 		namespaceNameKey = "namespace"

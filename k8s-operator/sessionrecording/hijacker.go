@@ -35,15 +35,19 @@ import (
 )
 
 const (
-	SPDYProtocol     Protocol = "SPDY"
-	WSProtocol       Protocol = "WebSocket"
-	ExecSubcommand            = "exec"
-	AttachSubcommand          = "attach"
+	SPDYProtocol     Protocol   = "SPDY"
+	WSProtocol       Protocol   = "WebSocket"
+	ExecSubcommand   Subcommand = "exec"
+	AttachSubcommand Subcommand = "attach"
 )
 
 // Protocol is the streaming protocol of the hijacked session. Supported
 // protocols are SPDY and WebSocket.
 type Protocol string
+
+// Subcommand is the `kubectl` subcommand used to initiate the stream
+// (`exec` or `attach`)
+type Subcommand string
 
 var (
 	// CounterSessionRecordingsAttempted counts the number of session recording attempts.
@@ -80,7 +84,7 @@ type HijackerOpts struct {
 	Namespace  string
 	FailOpen   bool
 	Proto      Protocol
-	Subcommand string
+	Subcommand Subcommand
 }
 
 // Hijacker implements [net/http.Hijacker] interface.
@@ -194,12 +198,12 @@ func (h *Hijacker) setUpRecording(ctx context.Context, conn net.Conn) (net.Conn,
 	var lc net.Conn
 	switch h.proto {
 	case SPDYProtocol:
-		lc, err = spdy.New(conn, rec, ch, hasTerm, h.log)
+		lc, err = spdy.New(ctx, conn, rec, ch, hasTerm, h.log)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize spdy connection: %w", err)
 		}
 	case WSProtocol:
-		lc, err = ws.New(conn, rec, ch, hasTerm, h.log)
+		lc, err = ws.New(ctx, conn, rec, ch, hasTerm, h.log)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize websocket connection: %w", err)
 		}

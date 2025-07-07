@@ -9,6 +9,7 @@ package spdy
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -30,9 +31,10 @@ import (
 // Data written to the underlying connection is data sent from the container to the client.
 // We parse the data and send everything for the stdout/stderr streams to the configured tsrecorder as an asciinema recording with the provided header.
 // https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/4006-transition-spdy-to-websockets#background-remotecommand-subprotocol
-func New(nc net.Conn, rec *tsrecorder.Client, ch sessionrecording.CastHeader, hasTerm bool, log *zap.SugaredLogger) (net.Conn, error) {
+func New(ctx context.Context, nc net.Conn, rec *tsrecorder.Client, ch sessionrecording.CastHeader, hasTerm bool, log *zap.SugaredLogger) (net.Conn, error) {
 	lc := &conn{
 		Conn:                  nc,
+		ctx:                   ctx,
 		rec:                   rec,
 		ch:                    ch,
 		log:                   log,
@@ -66,6 +68,7 @@ func New(nc net.Conn, rec *tsrecorder.Client, ch sessionrecording.CastHeader, ha
 // destination.
 type conn struct {
 	net.Conn
+	ctx context.Context
 	// rec knows how to send data written to it to a tsrecorder instance.
 	rec *tsrecorder.Client
 
@@ -166,17 +169,19 @@ func (c *conn) Read(b []byte) (int, error) {
 				// before sending CastHeader, else tsrecorder
 				// will not be able to play this recording.
 				err = c.rec.WriteCastHeader(c.ch)
-				if err == nil {
-					close(c.initialCastHeaderSent)
-				}
+				close(c.initialCastHeaderSent)
 			})
 			if err != nil {
 				return 0, fmt.Errorf("error writing CastHeader: %w", err)
 			}
 			if !isInitialResize {
-				<-c.initialCastHeaderSent
-				if err := c.rec.WriteResize(c.ch.Height, c.ch.Width); err != nil {
-					return 0, fmt.Errorf("error writing resize message: %w", err)
+				select {
+				case <-c.ctx.Done():
+					return 0, nil
+				case <-c.initialCastHeaderSent:
+					if err := c.rec.WriteResize(c.ch.Height, c.ch.Width); err != nil {
+						return 0, fmt.Errorf("error writing resize message: %w", err)
+					}
 				}
 			}
 		}
@@ -221,9 +226,13 @@ func (c *conn) Write(b []byte) (int, error) {
 		switch sf.StreamID {
 		case c.stdoutStreamID.Load(), c.stderrStreamID.Load():
 			// we must wait for confirmation that the initial cast header was sent before proceeding with any more writes
-			<-c.initialCastHeaderSent
-			if err := c.rec.WriteOutput(sf.Payload); err != nil {
-				return 0, fmt.Errorf("error sending payload to session recorder: %w", err)
+			select {
+			case <-c.ctx.Done():
+				return 0, nil
+			case <-c.initialCastHeaderSent:
+				if err := c.rec.WriteOutput(sf.Payload); err != nil {
+					return 0, fmt.Errorf("error sending payload to session recorder: %w", err)
+				}
 			}
 		}
 	}

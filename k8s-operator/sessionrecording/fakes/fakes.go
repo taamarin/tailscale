@@ -10,12 +10,12 @@ package fakes
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net"
 	"sync"
 	"testing"
 	"time"
-
-	"math/rand"
 
 	"tailscale.com/sessionrecording"
 	"tailscale.com/tstime"

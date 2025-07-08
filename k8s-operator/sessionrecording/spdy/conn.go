@@ -105,10 +105,6 @@ type conn struct {
 	// header is the first thing that is streamed to the session recorder.
 	// Otherwise the stream will fail.
 	initialCastHeaderSent chan struct{}
-	// sendInitialTermSizeSetOnce is used to ensure that a value is sent to
-	// initialTermSizeSet channel only once, when the initial resize message
-	// is received.
-	sendinitialTermSizeSetOnce sync.Once
 
 	zlibReqReader zlibReader
 	// writeBuf is used to store data written to the connection that has not

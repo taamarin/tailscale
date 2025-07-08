@@ -259,8 +259,8 @@ func (ap *apiserverProxy) subForProto(w http.ResponseWriter, r *http.Request, su
 	}
 	ksr.CounterSessionRecordingsAttempted.Add(1) // at this point we know that users intended for this session to be recorded
 	if !failOpen && len(addrs) == 0 {
-		msg := "forbidden: 'kubectl %s' session must be recorded, but no recorders are available."
-		ap.log.Error(fmt.Sprintf(msg, subcommand))
+		msg := fmt.Sprintf("forbidden: 'kubectl %s' session must be recorded, but no recorders are available.", subcommand)
+		ap.log.Error(msg)
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}

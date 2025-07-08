@@ -69,7 +69,7 @@ func New(opts HijackerOpts) *Hijacker {
 		failOpen:          opts.FailOpen,
 		proto:             opts.Proto,
 		log:               opts.Log,
-		subcommand:        string(opts.Subcommand),
+		subcommand:        opts.Subcommand,
 		connectToRecorder: sessionrecording.ConnectToRecorder,
 	}
 }
@@ -103,8 +103,8 @@ type Hijacker struct {
 	addrs             []netip.AddrPort // tsrecorder addresses
 	failOpen          bool             // whether to fail open if recording fails
 	connectToRecorder RecorderDialFn
-	proto             Protocol // streaming protocol
-	subcommand        string   // subcommand, e.g., "exec, attach"
+	proto             Protocol   // streaming protocol
+	subcommand        Subcommand // subcommand, e.g., "exec, attach"
 }
 
 // RecorderDialFn dials the specified netip.AddrPorts that should be tsrecorder

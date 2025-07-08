@@ -107,7 +107,13 @@ func CastLine(t *testing.T, p []byte, clock tstime.Clock) []byte {
 	return append(j, '\n')
 }
 
-func AsciinemaResizeMsg(t *testing.T, width, height int) []byte {
+func AsciinemaCastResizeMsg(t *testing.T, width, height int) []byte {
+	msg := fmt.Sprintf(`[0,"r","%dx%d"]`, height, width)
+
+	return append([]byte(msg), '\n')
+}
+
+func AsciinemaCastHeaderMsg(t *testing.T, width, height int) []byte {
 	t.Helper()
 	ch := sessionrecording.CastHeader{
 		Width:  width,

@@ -223,7 +223,7 @@ func (c *conn) Read(b []byte) (int, error) {
 			if !isInitialResize {
 				select {
 				case <-c.ctx.Done():
-					return 0, nil
+					return 0, c.ctx.Err()
 				case <-c.initialCastHeaderSent:
 					if err := c.rec.WriteResize(msg.Height, msg.Width); err != nil {
 						return 0, fmt.Errorf("error writing resize message: %w", err)
@@ -292,7 +292,7 @@ func (c *conn) Write(b []byte) (int, error) {
 			// we must wait for confirmation that the initial cast header was sent before proceeding with any more writes
 			select {
 			case <-c.ctx.Done():
-				return 0, nil
+				return 0, c.ctx.Err()
 			case <-c.initialCastHeaderSent:
 				if err := c.rec.WriteOutput(writeMsg.payload); err != nil {
 					return 0, fmt.Errorf("error writing message to recorder: %v", err)

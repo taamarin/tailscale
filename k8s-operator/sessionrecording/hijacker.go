@@ -69,6 +69,7 @@ func New(opts HijackerOpts) *Hijacker {
 		failOpen:          opts.FailOpen,
 		proto:             opts.Proto,
 		log:               opts.Log,
+		subcommand:        string(opts.Subcommand),
 		connectToRecorder: sessionrecording.ConnectToRecorder,
 	}
 }

@@ -286,7 +286,7 @@ func (c *conn) Write(b []byte) (int, error) {
 				return 0, c.ctx.Err()
 			case <-c.initialCastHeaderSent:
 				if err := c.rec.WriteOutput(writeMsg.payload); err != nil {
-					return 0, fmt.Errorf("error writing message to recorder: %v", err)
+					return 0, fmt.Errorf("error writing message to recorder: %w", err)
 				}
 			}
 		}

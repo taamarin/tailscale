@@ -217,13 +217,8 @@ func (c *conn) Read(b []byte) (int, error) {
 			}
 
 			if !isInitialResize {
-				select {
-				case <-c.ctx.Done():
-					return 0, c.ctx.Err()
-				case <-c.initialCastHeaderSent:
-					if err := c.rec.WriteResize(msg.Height, msg.Width); err != nil {
-						return 0, fmt.Errorf("error writing resize message: %w", err)
-					}
+				if err := c.rec.WriteResize(msg.Height, msg.Width); err != nil {
+					return 0, fmt.Errorf("error writing resize message: %w", err)
 				}
 			}
 		}

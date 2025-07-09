@@ -813,6 +813,7 @@ func (r *ProxyGroupReconciler) ensureConfigSecretsCreated(ctx context.Context, p
 					KubeAPIServer: &conf.KubeAPIServer{
 						AuthMode: opt.NewBool(isAuthAPIServerProxy(pg)),
 					},
+					ServerURL: &r.loginServer,
 				},
 			}
 			cfgB, err := json.Marshal(cfg)

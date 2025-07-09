@@ -152,6 +152,9 @@ func runPing(ctx context.Context, args []string) error {
 		}
 		latency := time.Duration(pr.LatencySeconds * float64(time.Second)).Round(time.Millisecond)
 		via := pr.Endpoint
+		if pr.VNI != 0 {
+			via = fmt.Sprintf("peer-relay(%s:vni:%d)", pr.Endpoint, pr.VNI)
+		}
 		if pr.DERPRegionID != 0 {
 			via = fmt.Sprintf("DERP(%s)", pr.DERPRegionCode)
 		}
@@ -173,7 +176,9 @@ func runPing(ctx context.Context, args []string) error {
 		if pingArgs.tsmp || pingArgs.icmp {
 			return nil
 		}
-		if pr.Endpoint != "" && pingArgs.untilDirect {
+		// If --until-direct=true was provided, only stop if the last ping was
+		// truly direct - peer relays don't count.
+		if pingArgs.untilDirect && pr.Endpoint != "" && pr.VNI == 0 {
 			return nil
 		}
 		time.Sleep(time.Second)

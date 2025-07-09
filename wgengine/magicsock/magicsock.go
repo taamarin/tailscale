@@ -1105,9 +1105,11 @@ func (c *Conn) Ping(peer tailcfg.NodeView, res *ipnstate.PingResult, size int, c
 func (c *Conn) populateCLIPingResponseLocked(res *ipnstate.PingResult, latency time.Duration, ep epAddr) {
 	res.LatencySeconds = latency.Seconds()
 	if ep.ap.Addr() != tailcfg.DerpMagicIPAddr {
-		// TODO(jwhited): if ep.vni.isSet() we are using a Tailscale client
-		//  as a UDP relay; update PingResult and its interpretation by
-		//  "tailscale ping" to make this clear.
+		// ep.vni.isSet() means we're using another Tailscale client as a peer
+		// relay; save the VNI to indicate this in the "tailscale ping" output.
+		if ep.vni.isSet() {
+			res.VNI = ep.vni.get()
+		}
 		res.Endpoint = ep.String()
 		return
 	}

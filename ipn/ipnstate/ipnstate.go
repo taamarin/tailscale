@@ -697,7 +697,7 @@ type PingResult struct {
 	Err            string
 	LatencySeconds float64
 
-	// Endpoint is the ip:port if direct UDP was used.
+	// Endpoint is the ip:port if direct UDP or peer relaying was used.
 	// It is not currently set for TSMP pings.
 	Endpoint string
 
@@ -718,6 +718,11 @@ type PingResult struct {
 	// PeerAPIURL is the URL that was hit for pings of type "peerapi" (tailcfg.PingPeerAPI).
 	// It's of the form "http://ip:port" (or [ip]:port for IPv6).
 	PeerAPIURL string `json:",omitempty"`
+
+	// VNI is the Virtual Network Identifier from the Geneve header that
+	// encapsulated the ping response (if any). Non-zero if the ping traversed
+	// a peer relay; zero if not.
+	VNI uint32 `json:",omitempty"`
 
 	// IsLocalIP is whether the ping request error is due to it being
 	// a ping to the local node.

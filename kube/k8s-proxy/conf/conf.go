@@ -59,6 +59,7 @@ type ConfigV1Alpha1 struct {
 	// StaticEndpoints are additional, user-defined endpoints that this node
 	// should advertise amongst its wireguard endpoints.
 	StaticEndpoints []netip.AddrPort `json:",omitempty"`
+	HealthCheckAddr *string          `json:",omitempty"` // The host:port to use for serving HTTP health checks.
 }
 
 type KubeAPIServer struct {

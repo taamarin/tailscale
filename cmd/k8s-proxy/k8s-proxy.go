@@ -64,12 +64,12 @@ func run(logger *zap.SugaredLogger) error {
 		logger = logger.WithOptions(zap.IncreaseLevel(level))
 	}
 
-	// NOTE:(ChaosInTheCRD) This is a temporary workaround until we can set static endpoints using prefs
+	// TODO:(ChaosInTheCRD) This is a temporary workaround until we can set static endpoints using prefs
 	if se := cfg.Parsed.StaticEndpoints; len(se) > 0 {
 		logger.Debugf("setting static endpoints '%v' via TS_DEBUG_PRETENDPOINT environment variable")
 		ses := make([]string, len(se))
-		for _, e := range se {
-			ses = append(ses, e.String())
+		for i, e := range se {
+			ses[i] = e.String()
 		}
 
 		err := os.Setenv("TS_DEBUG_PRETENDPOINT", strings.Join(ses, ","))

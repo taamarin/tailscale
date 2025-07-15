@@ -87,6 +87,8 @@ func tryExecInDir(ctx context.Context, dir string) error {
 	case "windows":
 		windir := os.Getenv("windir")
 		name = filepath.Join(windir, "system32", "doskey.exe")
+	case "darwin":
+		name = "/usr/bin/true"
 	default:
 		name = "/bin/true"
 	}

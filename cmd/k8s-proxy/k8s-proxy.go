@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/signal"
 	"strings"
@@ -190,26 +191,30 @@ func run(logger *zap.SugaredLogger) error {
 	})
 
 	if cfg.Parsed.HealthCheckAddr != nil {
+		if _, err := netip.ParseAddrPort(*cfg.Parsed.HealthCheckAddr); err != nil {
+			return fmt.Errorf("error parsing configured health check endpoint address %q: %w", *cfg.Parsed.HealthCheckAddr, err)
+		}
+
 		mux := http.NewServeMux()
 		health := &http.Server{Addr: *cfg.Parsed.HealthCheckAddr, Handler: mux}
 		ipV4, _ := ts.TailscaleIPs()
-		registerHealthHandlers(mux, ipV4.String())
-
+		hz := registerHealthHandlers(mux, ipV4.String())
 		group.Go(func() error {
 			return health.ListenAndServe()
 		})
 		group.Go(func() error {
-			// TODO(davidsbond): Use the ipn bus to check for address changes in NetMap and set health.update to
-			// whether we have at least 1 address. Like how it's done in containerboot. The problem is right now we
-			// seem to pass the Next() method into state.KeepKeysUpdated, which means we likely need to capture from
-			// that Next and fan out to the health check.
+			// NOTE(ChaosInTheCRD): maybe we don't care what the error is here since here and we just
+			// always want graceful shutdown?
+			err := hz.MonitorHealth(groupCtx, lc)
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					sCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+					defer cancel()
+					return health.Shutdown(sCtx)
+				}
+				return err
+			}
 			return nil
-		})
-		group.Go(func() error {
-			<-groupCtx.Done()
-			sCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
-			defer cancel()
-			return health.Shutdown(sCtx)
 		})
 	}
 

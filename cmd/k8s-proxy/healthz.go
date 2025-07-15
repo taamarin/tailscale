@@ -1,16 +1,19 @@
 // Copyright (c) Tailscale Inc & AUTHORS
 // SPDX-License-Identifier: BSD-3-Clause
 
-//go:build linux
+//go:build !plan9
 
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"sync"
 
+	"tailscale.com/client/local"
+	"tailscale.com/ipn"
 	"tailscale.com/kube/kubetypes"
 )
 
@@ -45,6 +48,30 @@ func (h *healthz) update(healthy bool) {
 		log.Println("Setting healthy", healthy)
 	}
 	h.hasAddrs = healthy
+}
+
+func (h *healthz) MonitorHealth(ctx context.Context, lc *local.Client) error {
+	w, err := lc.WatchIPNBus(ctx, ipn.NotifyInitialNetMap)
+	if err != nil {
+		return fmt.Errorf("rewatching tailscaled for updates after auth: %w", err)
+	}
+
+	for {
+		n, err := w.Next()
+		if err != nil {
+			return err
+		}
+
+		if n.NetMap != nil {
+			addrs := n.NetMap.SelfNode.Addresses().AsSlice()
+			if len(addrs) > 0 {
+				h.update(true)
+			}
+			if len(addrs) < 1 {
+				h.update(false)
+			}
+		}
+	}
 }
 
 // registerHealthHandlers registers a simple health handler at /healthz.

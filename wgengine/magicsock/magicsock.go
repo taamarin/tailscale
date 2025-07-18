@@ -2367,19 +2367,11 @@ func (c *Conn) handleDiscoMessage(msg []byte, src epAddr, shouldBeRelayHandshake
 			return
 		}
 
-		var gotSortedDisco key.SortedPairOfDiscoPublic
-		if isResp {
-			gotSortedDisco = key.NewSortedPairOfDiscoPublic(resp.ClientDisco[0], resp.ClientDisco[1])
-		} else {
-			gotSortedDisco = key.NewSortedPairOfDiscoPublic(req.ClientDisco[0], req.ClientDisco[1])
-		}
-		wantSortedDisco := key.NewSortedPairOfDiscoPublic(c.discoPublic, disco.key)
-		if !gotSortedDisco.Equal(wantSortedDisco) {
-			c.logf("magicsock: disco: %s from %v; %v does not contain expected disco keys", msgType, sender.ShortString(), derpNodeSrc.ShortString())
-			return
-		}
 		if isResp {
 			c.relayManager.handleRxDiscoMsg(c, resp, di.discoKey, src)
+			return
+		} else if sender.Compare(resp.ClientDisco[0]) != 0 && sender.Compare(resp.ClientDisco[1]) != 0 {
+			c.logf("magicsock: disco: %s from %v; %v does not contain sender's disco key", msgType, sender.ShortString(), derpNodeSrc.ShortString())
 			return
 		}
 

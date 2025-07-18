@@ -175,13 +175,15 @@ type Conn struct {
 
 	// These [eventbus.Subscriber] fields are solely accessed by
 	// consumeEventbusTopics once initialized.
-	pmSub        *eventbus.Subscriber[portmapper.Mapping]
-	filterSub    *eventbus.Subscriber[FilterUpdate]
-	nodeViewsSub *eventbus.Subscriber[NodeViewsUpdate]
-	nodeMutsSub  *eventbus.Subscriber[NodeMutationsUpdate]
-	syncSub      *eventbus.Subscriber[syncPoint]
-	syncPub      *eventbus.Publisher[syncPoint]
-	subsDoneCh   chan struct{} // closed when consumeEventbusTopics returns
+	pmSub                 *eventbus.Subscriber[portmapper.Mapping]
+	filterSub             *eventbus.Subscriber[FilterUpdate]
+	nodeViewsSub          *eventbus.Subscriber[NodeViewsUpdate]
+	nodeMutsSub           *eventbus.Subscriber[NodeMutationsUpdate]
+	syncSub               *eventbus.Subscriber[syncPoint]
+	syncPub               *eventbus.Publisher[syncPoint]
+	allocRelayEndpointPub *eventbus.Publisher[UDPRelayAllocReq]
+	allocRelayEndpointSub *eventbus.Subscriber[UDPRelayAllocResp]
+	subsDoneCh            chan struct{} // closed when consumeEventbusTopics returns
 
 	// pconn4 and pconn6 are the underlying UDP sockets used to
 	// send/receive packets for wireguard and other magicsock
@@ -567,6 +569,18 @@ func (s syncPoint) Signal() {
 	close(s)
 }
 
+type UDPRelayAllocReq struct {
+	ReceivedFromNodeKey  key.NodePublic
+	ReceivedFromDiscoKey key.DiscoPublic
+	Message              *disco.AllocateUDPRelayEndpointRequest
+}
+
+type UDPRelayAllocResp struct {
+	ForNodeKey  key.NodePublic
+	ForDiscoKey key.DiscoPublic
+	Message     *disco.AllocateUDPRelayEndpointResponse
+}
+
 // newConn is the error-free, network-listening-side-effect-free based
 // of NewConn. Mostly for tests.
 func newConn(logf logger.Logf) *Conn {
@@ -625,8 +639,30 @@ func (c *Conn) consumeEventbusTopics() {
 		case syncPoint := <-c.syncSub.Events():
 			c.dlogf("magicsock: received sync point after reconfig")
 			syncPoint.Signal()
+		case allocResp := <-c.allocRelayEndpointSub.Events():
+			c.onUDPRelayAllocResp(allocResp)
 		}
 	}
+}
+
+func (c *Conn) onUDPRelayAllocResp(allocResp UDPRelayAllocResp) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ep, ok := c.peerMap.endpointForNodeKey(allocResp.ForNodeKey)
+	if !ok {
+		return
+	}
+	disco := ep.disco.Load()
+	if disco == nil {
+		return
+	}
+	if disco.key.Compare(allocResp.ForDiscoKey) != 0 {
+		return
+	}
+	ep.mu.Lock()
+	defer ep.mu.Unlock()
+	derpAddr := ep.derpAddr
+	go c.sendDiscoMessage(epAddr{ap: derpAddr}, ep.publicKey, disco.key, allocResp.Message, discoVerboseLog)
 }
 
 // Synchronize waits for all [eventbus] events published
@@ -670,6 +706,8 @@ func NewConn(opts Options) (*Conn, error) {
 		c.nodeMutsSub = eventbus.Subscribe[NodeMutationsUpdate](c.eventClient)
 		c.syncSub = eventbus.Subscribe[syncPoint](c.eventClient)
 		c.syncPub = eventbus.Publish[syncPoint](c.eventClient)
+		c.allocRelayEndpointPub = eventbus.Publish[UDPRelayAllocReq](c.eventClient)
+		c.allocRelayEndpointSub = eventbus.Subscribe[UDPRelayAllocResp](c.eventClient)
 		c.subsDoneCh = make(chan struct{})
 		go c.consumeEventbusTopics()
 	}
@@ -1851,6 +1889,11 @@ func (v *virtualNetworkID) get() uint32 {
 //
 // If dst.ap is a DERP IP:port, then dstKey must be non-zero.
 //
+// If dst.ap is a DERP IP:port, dstKey is self, and m is a
+// [*disco.AllocateUDPRelayEndpointRequest], then sendDiscoMessage will direct
+// a [UDPRelayAllocReq] event over the eventbus instead of sending over the
+// network.
+//
 // If dst.vni.isSet(), the [disco.Message] will be preceded by a Geneve header
 // with the VNI field set to the value returned by vni.get().
 //
@@ -1860,6 +1903,17 @@ func (c *Conn) sendDiscoMessage(dst epAddr, dstKey key.NodePublic, dstDisco key.
 	isDERP := dst.ap.Addr() == tailcfg.DerpMagicIPAddr
 	if _, isPong := m.(*disco.Pong); isPong && !isDERP && dst.ap.Addr().Is4() {
 		time.Sleep(debugIPv4DiscoPingPenalty())
+	}
+
+	allocReq, isAllocReq := m.(*disco.AllocateUDPRelayEndpointRequest)
+	selfNodeKey := c.publicKeyAtomic.Load()
+	if isDERP && isAllocReq && dstKey.Compare(selfNodeKey) == 0 {
+		c.allocRelayEndpointPub.Publish(UDPRelayAllocReq{
+			ReceivedFromNodeKey:  selfNodeKey,
+			ReceivedFromDiscoKey: c.discoPublic,
+			Message:              allocReq,
+		})
+		return true, nil
 	}
 
 	isRelayHandshakeMsg := false
@@ -2176,7 +2230,7 @@ func (c *Conn) handleDiscoMessage(msg []byte, src epAddr, shouldBeRelayHandshake
 			c.logf("[unexpected] %T packets should not come from a relay server with Geneve control bit set", dm)
 			return
 		}
-		c.relayManager.handleGeneveEncapDiscoMsg(c, challenge, di, src)
+		c.relayManager.handleRxDiscoMsg(c, challenge, di, src)
 		return
 	}
 
@@ -2201,7 +2255,7 @@ func (c *Conn) handleDiscoMessage(msg []byte, src epAddr, shouldBeRelayHandshake
 			// If it's an unknown TxID, and it's Geneve-encapsulated, then
 			// make [relayManager] aware. It might be in the middle of probing
 			// src.
-			c.relayManager.handleGeneveEncapDiscoMsg(c, dm, di, src)
+			c.relayManager.handleRxDiscoMsg(c, dm, di, src)
 		}
 	case *disco.CallMeMaybe, *disco.CallMeMaybeVia:
 		var via *disco.CallMeMaybeVia
@@ -2276,7 +2330,80 @@ func (c *Conn) handleDiscoMessage(msg []byte, src epAddr, shouldBeRelayHandshake
 				len(cmm.MyNumber))
 			go ep.handleCallMeMaybe(cmm)
 		}
+	case *disco.AllocateUDPRelayEndpointRequest, *disco.AllocateUDPRelayEndpointResponse:
+		var resp *disco.AllocateUDPRelayEndpointResponse
+		isResp := false
+		msgType := "AllocateUDPRelayEndpointRequest"
+		req, ok := dm.(*disco.AllocateUDPRelayEndpointRequest)
+		if ok {
+			// TODO: metric
+		} else {
+			// TODO: metric
+			resp = dm.(*disco.AllocateUDPRelayEndpointResponse)
+			msgType = "AllocateUDPRelayEndpointResponse"
+			isResp = true
+		}
 
+		if !isDERP {
+			// These messages should only come via DERP.
+			c.logf("[unexpected] %s packets should only come via DERP", msgType)
+			return
+		}
+		nodeKey := derpNodeSrc
+		ep, ok := c.peerMap.endpointForNodeKey(nodeKey)
+		if !ok {
+			c.logf("magicsock: disco: ignoring %s from %v; %v is unknown", msgType, sender.ShortString(), derpNodeSrc.ShortString())
+			return
+		}
+		disco := ep.disco.Load()
+		if disco == nil {
+			return
+		}
+
+		var gotSortedDisco key.SortedPairOfDiscoPublic
+		if isResp {
+			gotSortedDisco = key.NewSortedPairOfDiscoPublic(resp.ClientDisco[0], resp.ClientDisco[1])
+		} else {
+			gotSortedDisco = key.NewSortedPairOfDiscoPublic(req.ClientDisco[0], req.ClientDisco[1])
+		}
+		wantSortedDisco := key.NewSortedPairOfDiscoPublic(c.discoPublic, disco.key)
+		if !gotSortedDisco.Equal(wantSortedDisco) {
+			c.logf("magicsock: disco: %s from %v; %v does not contain expected disco keys", msgType, sender.ShortString(), derpNodeSrc.ShortString())
+			return
+		}
+		if isResp {
+			c.relayManager.handleRxDiscoMsg(c, resp, di, src)
+			return
+		}
+
+		if c.filt == nil {
+			return
+		}
+		// Binary search of peers is O(log n) while c.mu is held.
+		// TODO: We might be able to use ep.nodeAddr instead of all addresses,
+		//  or we might be able to release c.mu before doing this work. Keep it
+		//  simple and slow for now. c.peers.AsSlice is a copy. We may need to
+		//  write our own binary search for a [views.Slice].
+		peerI, ok := slices.BinarySearchFunc(c.peers.AsSlice(), ep.nodeID, func(peer tailcfg.NodeView, target tailcfg.NodeID) int {
+			if peer.ID() < target {
+				return -1
+			} else if peer.ID() > target {
+				return 1
+			}
+			return 0
+		})
+		if !ok {
+			// unexpected
+			return
+		}
+		if !nodeHasCap(c.filt, c.peers.At(peerI), c.self, tailcfg.PeerCapabilityRelay) {
+			return
+		}
+		c.allocRelayEndpointPub.Publish(UDPRelayAllocReq{
+			ReceivedFromDiscoKey: sender,
+			ReceivedFromNodeKey:  nodeKey,
+			Message:              req,
+		})
 	}
 	return
 }
@@ -2337,7 +2464,7 @@ func (c *Conn) handlePingLocked(dm *disco.Ping, src epAddr, di *discoInfo, derpN
 		// Geneve-encapsulated [disco.Ping] messages in the interest of
 		// simplicity. It might be in the middle of probing src, so it must be
 		// made aware.
-		c.relayManager.handleGeneveEncapDiscoMsg(c, dm, di, src)
+		c.relayManager.handleRxDiscoMsg(c, dm, di, src)
 		return
 	}
 
@@ -2722,69 +2849,68 @@ func (c *Conn) onFilterUpdate(f FilterUpdate) {
 //  2. Moving this work upstream into [nodeBackend] or similar, and publishing
 //     the computed result over the eventbus instead.
 func (c *Conn) updateRelayServersSet(filt *filter.Filter, self tailcfg.NodeView, peers views.Slice[tailcfg.NodeView]) {
-	relayServers := make(set.Set[netip.AddrPort])
+	relayServers := make(set.Set[candidatePeerRelay])
 	nodes := append(peers.AsSlice(), self)
 	for _, maybeCandidate := range nodes {
-		peerAPI := peerAPIIfCandidateRelayServer(filt, self, maybeCandidate)
-		if peerAPI.IsValid() {
-			relayServers.Add(peerAPI)
+		if maybeCandidate.ID() != self.ID() && !capVerIsRelayCapable(maybeCandidate.Cap()) {
+			// If maybeCandidate's [tailcfg.CapabilityVersion] is not relay-capable,
+			// we skip it. If maybeCandidate happens to be self, then this check is
+			// unnecessary as self is always capable from this point (the statically
+			// compiled [tailcfg.CurrentCapabilityVersion]) forward.
+			continue
 		}
+		if !nodeHasCap(filt, maybeCandidate, self, tailcfg.PeerCapabilityRelayTarget) {
+			continue
+		}
+		relayServers.Add(candidatePeerRelay{
+			nodeKey:          maybeCandidate.Key(),
+			discoKey:         maybeCandidate.DiscoKey(),
+			derpHomeRegionID: uint16(maybeCandidate.HomeDERP()),
+		})
 	}
 	c.relayManager.handleRelayServersSet(relayServers)
 }
 
-// peerAPIIfCandidateRelayServer returns the peer API address of maybeCandidate
-// if it is considered to be a candidate relay server upon evaluation against
-// filt and self, otherwise it returns a zero value. self and maybeCandidate
-// may be equal.
-func peerAPIIfCandidateRelayServer(filt *filter.Filter, self, maybeCandidate tailcfg.NodeView) netip.AddrPort {
+// nodeHasCap returns true if src has cap on dst, otherwise it returns false.
+func nodeHasCap(filt *filter.Filter, src, dst tailcfg.NodeView, cap tailcfg.PeerCapability) bool {
 	if filt == nil ||
-		!self.Valid() ||
-		!maybeCandidate.Valid() ||
-		!maybeCandidate.Hostinfo().Valid() {
-		return netip.AddrPort{}
+		!src.Valid() ||
+		!dst.Valid() {
+		return false
 	}
-	if maybeCandidate.ID() != self.ID() && !capVerIsRelayCapable(maybeCandidate.Cap()) {
-		// If maybeCandidate's [tailcfg.CapabilityVersion] is not relay-capable,
-		// we skip it. If maybeCandidate happens to be self, then this check is
-		// unnecessary as self is always capable from this point (the statically
-		// compiled [tailcfg.CurrentCapabilityVersion]) forward.
-		return netip.AddrPort{}
-	}
-	for _, maybeCandidatePrefix := range maybeCandidate.Addresses().All() {
-		if !maybeCandidatePrefix.IsSingleIP() {
+	for _, srcPrefix := range src.Addresses().All() {
+		if !srcPrefix.IsSingleIP() {
 			continue
 		}
-		maybeCandidateAddr := maybeCandidatePrefix.Addr()
-		for _, selfPrefix := range self.Addresses().All() {
-			if !selfPrefix.IsSingleIP() {
+		srcAddr := srcPrefix.Addr()
+		for _, dstPrefix := range dst.Addresses().All() {
+			if !dstPrefix.IsSingleIP() {
 				continue
 			}
-			selfAddr := selfPrefix.Addr()
-			if selfAddr.BitLen() == maybeCandidateAddr.BitLen() { // same address family
-				if filt.CapsWithValues(maybeCandidateAddr, selfAddr).HasCapability(tailcfg.PeerCapabilityRelayTarget) {
-					for _, s := range maybeCandidate.Hostinfo().Services().All() {
-						if maybeCandidateAddr.Is4() && s.Proto == tailcfg.PeerAPI4 ||
-							maybeCandidateAddr.Is6() && s.Proto == tailcfg.PeerAPI6 {
-							return netip.AddrPortFrom(maybeCandidateAddr, s.Port)
-						}
-					}
-					return netip.AddrPort{} // no peerAPI
-				} else {
-					// [nodeBackend.peerCapsLocked] only returns/considers the
-					// [tailcfg.PeerCapMap] between the passed src and the
-					// _first_ host (/32 or /128) address for self. We are
-					// consistent with that behavior here. If self and
-					// maybeCandidate host addresses are of the same address
-					// family they either have the capability or not. We do not
-					// check against additional host addresses of the same
-					// address family.
-					return netip.AddrPort{}
-				}
+			dstAddr := dstPrefix.Addr()
+			if dstAddr.BitLen() == srcAddr.BitLen() { // same address family
+				// [nodeBackend.peerCapsLocked] only returns/considers the
+				// [tailcfg.PeerCapMap] between the passed src and the _first_
+				// host (/32 or /128) address for self. We are consistent with
+				// that behavior here. If src and dst host addresses are of the
+				// same address family they either have the capability or not.
+				// We do not check against additional host addresses of the same
+				// address family.
+				return filt.CapsWithValues(srcAddr, dstAddr).HasCapability(cap)
 			}
 		}
 	}
-	return netip.AddrPort{}
+	return false
+}
+
+type candidatePeerRelay struct {
+	nodeKey          key.NodePublic
+	discoKey         key.DiscoPublic
+	derpHomeRegionID uint16
+}
+
+func (c *candidatePeerRelay) isValid() bool {
+	return !c.nodeKey.IsZero() && !c.discoKey.IsZero()
 }
 
 // onNodeViewsUpdate is called when a [NodeViewsUpdate] is received over the
@@ -3985,6 +4111,22 @@ func (le *lazyEndpoint) FromPeer(peerPublicKey [32]byte) {
 }
 
 // PeerRelays returns the current set of candidate peer relays.
-func (c *Conn) PeerRelays() set.Set[netip.AddrPort] {
-	return c.relayManager.getServers()
+func (c *Conn) PeerRelays() set.Set[netip.Addr] {
+	candidatePeerRelays := c.relayManager.getServers()
+	servers := make(set.Set[netip.Addr], len(candidatePeerRelays))
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for relay := range candidatePeerRelays {
+		pi, ok := c.peerMap.byNodeKey[relay.nodeKey]
+		if !ok {
+			if c.self.Key().Compare(relay.nodeKey) == 0 {
+				if c.self.Addresses().Len() > 0 {
+					servers.Add(c.self.Addresses().At(0).Addr())
+				}
+			}
+			continue
+		}
+		servers.Add(pi.ep.nodeAddr)
+	}
+	return servers
 }

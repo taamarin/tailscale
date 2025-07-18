@@ -21,6 +21,10 @@ type ServerEndpoint struct {
 	// unique ServerEndpoint allocation.
 	ServerDisco key.DiscoPublic
 
+	// ClientDisco are the Disco public keys of the relay participants permitted
+	// to handshake with this endpoint.
+	ClientDisco [2]key.DiscoPublic
+
 	// LamportID is unique and monotonically non-decreasing across
 	// ServerEndpoint allocations for the lifetime of Server. It enables clients
 	// to dedup and resolve allocation event order. Clients may race to allocate

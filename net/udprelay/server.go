@@ -73,23 +73,7 @@ type Server struct {
 	lamportID         uint64
 	vniPool           []uint32 // the pool of available VNIs
 	byVNI             map[uint32]*serverEndpoint
-	byDisco           map[pairOfDiscoPubKeys]*serverEndpoint
-}
-
-// pairOfDiscoPubKeys is a pair of key.DiscoPublic. It must be constructed via
-// newPairOfDiscoPubKeys to ensure lexicographical ordering.
-type pairOfDiscoPubKeys [2]key.DiscoPublic
-
-func (p pairOfDiscoPubKeys) String() string {
-	return fmt.Sprintf("%s <=> %s", p[0].ShortString(), p[1].ShortString())
-}
-
-func newPairOfDiscoPubKeys(discoA, discoB key.DiscoPublic) pairOfDiscoPubKeys {
-	pair := pairOfDiscoPubKeys([2]key.DiscoPublic{discoA, discoB})
-	slices.SortFunc(pair[:], func(a, b key.DiscoPublic) int {
-		return a.Compare(b)
-	})
-	return pair
+	byDisco           map[key.SortedPairOfDiscoPublic]*serverEndpoint
 }
 
 // serverEndpoint contains Server-internal [endpoint.ServerEndpoint] state.
@@ -99,7 +83,7 @@ type serverEndpoint struct {
 	// indexing of this array aligns with the following fields, e.g.
 	// discoSharedSecrets[0] is the shared secret to use when sealing
 	// Disco protocol messages for transmission towards discoPubKeys[0].
-	discoPubKeys        pairOfDiscoPubKeys
+	discoPubKeys        key.SortedPairOfDiscoPublic
 	discoSharedSecrets  [2]key.DiscoShared
 	handshakeGeneration [2]uint32         // or zero if a handshake has never started for that relay leg
 	handshakeAddrPorts  [2]netip.AddrPort // or zero value if a handshake has never started for that relay leg
@@ -126,7 +110,7 @@ func (e *serverEndpoint) handleDiscoControlMsg(from netip.AddrPort, senderIndex 
 		if common.VNI != e.vni {
 			return errors.New("mismatching VNI")
 		}
-		if common.RemoteKey.Compare(e.discoPubKeys[otherSender]) != 0 {
+		if common.RemoteKey.Compare(e.discoPubKeys.Get()[otherSender]) != 0 {
 			return errors.New("mismatching RemoteKey")
 		}
 		return nil
@@ -152,7 +136,7 @@ func (e *serverEndpoint) handleDiscoControlMsg(from netip.AddrPort, senderIndex 
 		m := new(disco.BindUDPRelayEndpointChallenge)
 		m.VNI = e.vni
 		m.Generation = discoMsg.Generation
-		m.RemoteKey = e.discoPubKeys[otherSender]
+		m.RemoteKey = e.discoPubKeys.Get()[otherSender]
 		rand.Read(e.challenge[senderIndex][:])
 		copy(m.Challenge[:], e.challenge[senderIndex][:])
 		reply := make([]byte, packet.GeneveFixedHeaderLength, 512)
@@ -200,9 +184,9 @@ func (e *serverEndpoint) handleSealedDiscoControlMsg(from netip.AddrPort, b []by
 	sender := key.DiscoPublicFromRaw32(mem.B(senderRaw))
 	senderIndex := -1
 	switch {
-	case sender.Compare(e.discoPubKeys[0]) == 0:
+	case sender.Compare(e.discoPubKeys.Get()[0]) == 0:
 		senderIndex = 0
-	case sender.Compare(e.discoPubKeys[1]) == 0:
+	case sender.Compare(e.discoPubKeys.Get()[1]) == 0:
 		senderIndex = 1
 	default:
 		// unknown Disco public key
@@ -296,7 +280,7 @@ func NewServer(logf logger.Logf, port int, overrideAddrs []netip.Addr) (s *Serve
 		bindLifetime:        defaultBindLifetime,
 		steadyStateLifetime: defaultSteadyStateLifetime,
 		closeCh:             make(chan struct{}),
-		byDisco:             make(map[pairOfDiscoPubKeys]*serverEndpoint),
+		byDisco:             make(map[key.SortedPairOfDiscoPublic]*serverEndpoint),
 		byVNI:               make(map[uint32]*serverEndpoint),
 	}
 	s.discoPublic = s.disco.Public()
@@ -624,7 +608,7 @@ func (s *Server) AllocateEndpoint(discoA, discoB key.DiscoPublic) (endpoint.Serv
 		return endpoint.ServerEndpoint{}, fmt.Errorf("client disco equals server disco: %s", s.discoPublic.ShortString())
 	}
 
-	pair := newPairOfDiscoPubKeys(discoA, discoB)
+	pair := key.NewSortedPairOfDiscoPublic(discoA, discoB)
 	e, ok := s.byDisco[pair]
 	if ok {
 		// Return the existing allocation. Clients can resolve duplicate
@@ -639,6 +623,7 @@ func (s *Server) AllocateEndpoint(discoA, discoB key.DiscoPublic) (endpoint.Serv
 			// behaviors and endpoint state (bound or not). We might want to
 			// consider storing them (maybe interning) in the [*serverEndpoint]
 			// at allocation time.
+			ClientDisco:         pair.Get(),
 			AddrPorts:           slices.Clone(s.addrPorts),
 			VNI:                 e.vni,
 			LamportID:           e.lamportID,
@@ -657,8 +642,8 @@ func (s *Server) AllocateEndpoint(discoA, discoB key.DiscoPublic) (endpoint.Serv
 		lamportID:    s.lamportID,
 		allocatedAt:  time.Now(),
 	}
-	e.discoSharedSecrets[0] = s.disco.Shared(e.discoPubKeys[0])
-	e.discoSharedSecrets[1] = s.disco.Shared(e.discoPubKeys[1])
+	e.discoSharedSecrets[0] = s.disco.Shared(e.discoPubKeys.Get()[0])
+	e.discoSharedSecrets[1] = s.disco.Shared(e.discoPubKeys.Get()[1])
 	e.vni, s.vniPool = s.vniPool[0], s.vniPool[1:]
 
 	s.byDisco[pair] = e
@@ -666,6 +651,7 @@ func (s *Server) AllocateEndpoint(discoA, discoB key.DiscoPublic) (endpoint.Serv
 
 	return endpoint.ServerEndpoint{
 		ServerDisco:         s.discoPublic,
+		ClientDisco:         pair.Get(),
 		AddrPorts:           slices.Clone(s.addrPorts),
 		VNI:                 e.vni,
 		LamportID:           e.lamportID,

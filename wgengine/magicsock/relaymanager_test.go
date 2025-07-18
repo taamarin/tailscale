@@ -14,7 +14,7 @@ import (
 
 func TestRelayManagerInitAndIdle(t *testing.T) {
 	rm := relayManager{}
-	rm.startUDPRelayPathDiscoveryFor(&endpoint{}, addrQuality{}, false)
+	rm.startUDPRelayPathDiscoveryFor(&endpoint{}, netip.AddrPort{}, addrQuality{}, false)
 	<-rm.runLoopStoppedCh
 
 	rm = relayManager{}
@@ -22,15 +22,15 @@ func TestRelayManagerInitAndIdle(t *testing.T) {
 	<-rm.runLoopStoppedCh
 
 	rm = relayManager{}
-	rm.handleCallMeMaybeVia(&endpoint{c: &Conn{discoPrivate: key.NewDisco()}}, addrQuality{}, false, &disco.CallMeMaybeVia{ServerDisco: key.NewDisco().Public()})
+	rm.handleCallMeMaybeVia(&endpoint{c: &Conn{discoPrivate: key.NewDisco()}}, addrQuality{}, false, &disco.CallMeMaybeVia{UDPRelayEndpoint: disco.UDPRelayEndpoint{ServerDisco: key.NewDisco().Public()}})
 	<-rm.runLoopStoppedCh
 
 	rm = relayManager{}
-	rm.handleGeneveEncapDiscoMsg(&Conn{discoPrivate: key.NewDisco()}, &disco.BindUDPRelayEndpointChallenge{}, &discoInfo{}, epAddr{})
+	rm.handleRxDiscoMsg(&Conn{discoPrivate: key.NewDisco()}, &disco.BindUDPRelayEndpointChallenge{}, &discoInfo{}, epAddr{})
 	<-rm.runLoopStoppedCh
 
 	rm = relayManager{}
-	rm.handleRelayServersSet(make(set.Set[netip.AddrPort]))
+	rm.handleRelayServersSet(make(set.Set[candidatePeerRelay]))
 	<-rm.runLoopStoppedCh
 
 	rm = relayManager{}
@@ -40,8 +40,12 @@ func TestRelayManagerInitAndIdle(t *testing.T) {
 
 func TestRelayManagerGetServers(t *testing.T) {
 	rm := relayManager{}
-	servers := make(set.Set[netip.AddrPort], 1)
-	servers.Add(netip.MustParseAddrPort("192.0.2.1:7"))
+	servers := make(set.Set[candidatePeerRelay], 1)
+	c := candidatePeerRelay{
+		nodeKey:  key.NewNode().Public(),
+		discoKey: key.NewDisco().Public(),
+	}
+	servers.Add(c)
 	rm.handleRelayServersSet(servers)
 	got := rm.getServers()
 	if !servers.Equal(got) {

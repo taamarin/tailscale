@@ -884,7 +884,7 @@ func (de *endpoint) discoverUDPRelayPathsLocked(now mono.Time) {
 	de.lastUDPRelayPathDiscovery = now
 	lastBest := de.bestAddr
 	lastBestIsTrusted := mono.Now().Before(de.trustBestAddrUntil)
-	de.c.relayManager.startUDPRelayPathDiscoveryFor(de, lastBest, lastBestIsTrusted)
+	de.c.relayManager.startUDPRelayPathDiscoveryFor(de, de.derpAddr, lastBest, lastBestIsTrusted)
 }
 
 // wantUDPRelayPathDiscoveryLocked reports whether we should kick off UDP relay
@@ -2039,4 +2039,5 @@ func (de *endpoint) setDERPHome(regionID uint16) {
 	de.mu.Lock()
 	defer de.mu.Unlock()
 	de.derpAddr = netip.AddrPortFrom(tailcfg.DerpMagicIPAddr, uint16(regionID))
+	de.c.relayManager.handleDERPHomeChange(de.publicKey, regionID)
 }

@@ -813,7 +813,9 @@ func (r *ProxyGroupReconciler) ensureConfigSecretsCreated(ctx context.Context, p
 					KubeAPIServer: &conf.KubeAPIServer{
 						AuthMode: opt.NewBool(isAuthAPIServerProxy(pg)),
 					},
-					HealthCheckAddr: ptr.To("[::]:9002"),
+					LocalAddrPort:      ptr.To("[::]:9002"),
+					MetricsEnabled:     true,
+					HealthCheckEnabled: true,
 				},
 			}
 

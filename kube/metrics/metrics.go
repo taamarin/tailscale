@@ -1,9 +1,9 @@
 // Copyright (c) Tailscale Inc & AUTHORS
 // SPDX-License-Identifier: BSD-3-Clause
 
-//go:build linux
+//go:build !plan9
 
-package main
+package metrics
 
 import (
 	"fmt"
@@ -68,7 +68,7 @@ func (m *metrics) handleDebug(w http.ResponseWriter, r *http.Request) {
 // In 1.78.x and 1.80.x, it also proxies debug paths to tailscaled's debug
 // endpoint if configured to ease migration for a breaking change serving user
 // metrics instead of debug metrics on the "metrics" port.
-func registerMetricsHandlers(mux *http.ServeMux, lc *local.Client, debugAddrPort string) {
+func RegisterMetricsHandlers(mux *http.ServeMux, lc *local.Client, debugAddrPort string) {
 	m := &metrics{
 		lc:            lc,
 		debugEndpoint: debugAddrPort,

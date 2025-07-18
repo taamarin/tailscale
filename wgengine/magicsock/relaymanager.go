@@ -879,7 +879,7 @@ func (r *relayManager) allocateServerEndpoint(work *relayEndpointAllocWork, gene
 		ClientDisco: work.discoKeys.Get(),
 		Generation:  generation,
 	}
-	go work.wlb.ep.c.sendDiscoMessage(epAddr{ap: netip.AddrPortFrom(tailcfg.DerpMagicIPAddr, work.candidatePeerRelay.derpHomeRegionID)}, work.candidatePeerRelay.nodeKey, work.candidatePeerRelay.discoKey, dm, discoVerboseLog)
+	go work.wlb.ep.c.sendDiscoAllocateUDPRelayEndpointRequest(epAddr{ap: netip.AddrPortFrom(tailcfg.DerpMagicIPAddr, work.candidatePeerRelay.derpHomeRegionID)}, work.candidatePeerRelay.nodeKey, work.candidatePeerRelay.discoKey, dm, discoVerboseLog)
 	timer := time.NewTimer(allocateUDPRelayEndpointRequestTimeout)
 	defer timer.Stop()
 

@@ -1885,14 +1885,27 @@ func (v *virtualNetworkID) get() uint32 {
 	return v._vni & vniGetMask
 }
 
+// sendDiscoAllocateUDPRelayEndpointRequest is primarily an alias for
+// sendDiscoMessage, but it will alternatively send m over the eventbus if dst
+// is a DERP IP:port, and dstKey is self. This saves a round-trip through DERP
+// when we are attempting to allocate on our own peer relay server.
+func (c *Conn) sendDiscoAllocateUDPRelayEndpointRequest(dst epAddr, dstKey key.NodePublic, dstDisco key.DiscoPublic, allocReq *disco.AllocateUDPRelayEndpointRequest, logLevel discoLogLevel) (sent bool, err error) {
+	isDERP := dst.ap.Addr() == tailcfg.DerpMagicIPAddr
+	selfNodeKey := c.publicKeyAtomic.Load()
+	if isDERP && dstKey.Compare(selfNodeKey) == 0 {
+		c.allocRelayEndpointPub.Publish(UDPRelayAllocReq{
+			ReceivedFromNodeKey:  selfNodeKey,
+			ReceivedFromDiscoKey: c.discoPublic,
+			Message:              allocReq,
+		})
+		return true, nil
+	}
+	return c.sendDiscoMessage(dst, dstKey, dstDisco, allocReq, logLevel)
+}
+
 // sendDiscoMessage sends discovery message m to dstDisco at dst.
 //
 // If dst.ap is a DERP IP:port, then dstKey must be non-zero.
-//
-// If dst.ap is a DERP IP:port, dstKey is self, and m is a
-// [*disco.AllocateUDPRelayEndpointRequest], then sendDiscoMessage will direct
-// a [UDPRelayAllocReq] event over the eventbus instead of sending over the
-// network.
 //
 // If dst.vni.isSet(), the [disco.Message] will be preceded by a Geneve header
 // with the VNI field set to the value returned by vni.get().
@@ -1903,17 +1916,6 @@ func (c *Conn) sendDiscoMessage(dst epAddr, dstKey key.NodePublic, dstDisco key.
 	isDERP := dst.ap.Addr() == tailcfg.DerpMagicIPAddr
 	if _, isPong := m.(*disco.Pong); isPong && !isDERP && dst.ap.Addr().Is4() {
 		time.Sleep(debugIPv4DiscoPingPenalty())
-	}
-
-	allocReq, isAllocReq := m.(*disco.AllocateUDPRelayEndpointRequest)
-	selfNodeKey := c.publicKeyAtomic.Load()
-	if isDERP && isAllocReq && dstKey.Compare(selfNodeKey) == 0 {
-		c.allocRelayEndpointPub.Publish(UDPRelayAllocReq{
-			ReceivedFromNodeKey:  selfNodeKey,
-			ReceivedFromDiscoKey: c.discoPublic,
-			Message:              allocReq,
-		})
-		return true, nil
 	}
 
 	isRelayHandshakeMsg := false

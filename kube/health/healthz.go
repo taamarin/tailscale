@@ -3,6 +3,9 @@
 
 //go:build !plan9
 
+// Package health contains shared types and underlying methods for serving
+// a `/healthz` endpoint to containerboot and k8s-proxy. This is primarily
+// consumed by containerboot and k8s-proxy.
 package health
 
 import (

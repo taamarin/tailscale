@@ -3,6 +3,8 @@
 
 //go:build !plan9
 
+// Package metrics contains shared types and underlying methods for serving
+// localapi metrics. This is primarily consumed by containerboot and k8s-proxy.
 package metrics
 
 import (

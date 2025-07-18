@@ -650,6 +650,11 @@ func (c *Conn) onUDPRelayAllocResp(allocResp UDPRelayAllocResp) {
 	defer c.mu.Unlock()
 	ep, ok := c.peerMap.endpointForNodeKey(allocResp.ForNodeKey)
 	if !ok {
+		selfNodeKey := c.publicKeyAtomic.Load()
+		if selfNodeKey.Compare(allocResp.ForNodeKey) == 0 &&
+			allocResp.ForDiscoKey.Compare(c.discoPublic) == 0 {
+			c.relayManager.handleRxDiscoMsg(c, allocResp.Message, allocResp.ForDiscoKey, epAddr{})
+		}
 		return
 	}
 	disco := ep.disco.Load()
@@ -2232,7 +2237,7 @@ func (c *Conn) handleDiscoMessage(msg []byte, src epAddr, shouldBeRelayHandshake
 			c.logf("[unexpected] %T packets should not come from a relay server with Geneve control bit set", dm)
 			return
 		}
-		c.relayManager.handleRxDiscoMsg(c, challenge, di, src)
+		c.relayManager.handleRxDiscoMsg(c, challenge, di.discoKey, src)
 		return
 	}
 
@@ -2257,7 +2262,7 @@ func (c *Conn) handleDiscoMessage(msg []byte, src epAddr, shouldBeRelayHandshake
 			// If it's an unknown TxID, and it's Geneve-encapsulated, then
 			// make [relayManager] aware. It might be in the middle of probing
 			// src.
-			c.relayManager.handleRxDiscoMsg(c, dm, di, src)
+			c.relayManager.handleRxDiscoMsg(c, dm, di.discoKey, src)
 		}
 	case *disco.CallMeMaybe, *disco.CallMeMaybeVia:
 		var via *disco.CallMeMaybeVia
@@ -2374,7 +2379,7 @@ func (c *Conn) handleDiscoMessage(msg []byte, src epAddr, shouldBeRelayHandshake
 			return
 		}
 		if isResp {
-			c.relayManager.handleRxDiscoMsg(c, resp, di, src)
+			c.relayManager.handleRxDiscoMsg(c, resp, di.discoKey, src)
 			return
 		}
 
@@ -2466,7 +2471,7 @@ func (c *Conn) handlePingLocked(dm *disco.Ping, src epAddr, di *discoInfo, derpN
 		// Geneve-encapsulated [disco.Ping] messages in the interest of
 		// simplicity. It might be in the middle of probing src, so it must be
 		// made aware.
-		c.relayManager.handleRxDiscoMsg(c, dm, di, src)
+		c.relayManager.handleRxDiscoMsg(c, dm, di.discoKey, src)
 		return
 	}
 

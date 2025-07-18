@@ -365,8 +365,8 @@ func (r *relayManager) handleCallMeMaybeVia(ep *endpoint, lastBest addrQuality, 
 // handleRxDiscoMsg handles reception of disco messages that [relayManager]
 // may be interested in. This includes all Geneve-encapsulated disco messages
 // and [disco.AllocateUDPRelayEndpointResponse].
-func (r *relayManager) handleRxDiscoMsg(conn *Conn, dm disco.Message, di *discoInfo, src epAddr) {
-	relayManagerInputEvent(r, nil, &r.rxDiscoMsgCh, relayDiscoMsgEvent{conn: conn, msg: dm, disco: di.discoKey, from: src.ap, vni: src.vni.get(), at: time.Now()})
+func (r *relayManager) handleRxDiscoMsg(conn *Conn, dm disco.Message, discoKey key.DiscoPublic, src epAddr) {
+	relayManagerInputEvent(r, nil, &r.rxDiscoMsgCh, relayDiscoMsgEvent{conn: conn, msg: dm, disco: discoKey, from: src.ap, vni: src.vni.get(), at: time.Now()})
 }
 
 // handleRelayServersSet handles an update of the complete relay server set.
